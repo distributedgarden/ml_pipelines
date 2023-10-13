@@ -1,4 +1,3 @@
-# An example GitHub Actions YAML
 name: Push to ECR
 on:
   push:
@@ -10,9 +9,22 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
-    - name: Push to ECR
-      run: |
-        $(aws ecr get-login --no-include-email --region us-west-2)
-        docker build -t my-sagemaker-container .
-        docker tag my-sagemaker-container:latest $ECR_REPOSITORY:latest
-        docker push $ECR_REPOSITORY:latest
+      
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-west-2
+        
+    - name: Login to ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.login-ecr.outputs.registry }}/my-sagemaker-container:latest
+
