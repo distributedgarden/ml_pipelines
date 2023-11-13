@@ -58,7 +58,7 @@ def create_training_step(estimator, trial_name):
     step = TrainingStep(
         name="BERTModelTraining",
         estimator=estimator,
-        inputs={"training": TrainingInput(s3_data="s3://path-to-your-dataset/")},
+        inputs={"training": TrainingInput(s3_data="s3://imdb-content/train.csv")},
         experiment_config={
             "TrialName": trial_name,
             "TrialComponentDisplayName": "Training",
