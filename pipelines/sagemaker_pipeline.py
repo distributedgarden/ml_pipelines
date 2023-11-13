@@ -9,21 +9,36 @@ from sagemaker.model_metrics import ModelMetrics
 from sagemaker.workflow.step_collections import RegisterModel
 
 
-def get_sagemaker_pipeline():
-    # create an experiment to track training lineage
+def create_experiment(name):
+    """
+    Description:
+        - create a SageMaker experiment
+        - experiments will enable tracking metadata for each training job
+    """
     experiment = Experiment.create(
-        experiment_name="MyBERTExperiment",
-        description="Experiment to fine-tune BERT model",
+        experiment_name=name, description="Experiment to fine-tune BERT model"
     )
 
-    trial_name = "MyBERTTrial-" + sagemaker.utils.sagemaker_timestamp()
-    trial = Trial.create(
-        trial_name=trial_name,
-        experiment_name=experiment.experiment_name,
-    )
+    return experiment
 
-    # define the estimator
-    pytorch_estimator = PyTorch(
+
+def create_trial(experiment_name):
+    """
+    Description:
+        - create a trial for the experiment.
+    """
+    trial_name = f"MyBERTTrial-{sagemaker.utils.sagemaker_timestamp()}"
+    trial = Trial.create(trial_name=trial_name, experiment_name=experiment_name)
+
+    return trial
+
+
+def create_pytorch_estimator():
+    """
+    Description:
+        - estimator for training
+    """
+    estimator = PyTorch(
         entry_point="training/train.py",
         role=sagemaker.get_execution_role(),
         framework_version="1.8.1",
@@ -32,29 +47,42 @@ def get_sagemaker_pipeline():
         instance_type="ml.m5.large",
     )
 
-    # define the training step
-    training_step = TrainingStep(
+    return estimator
+
+
+def create_training_step(estimator, trial_name):
+    """
+    Description:
+        - step: training
+    """
+    step = TrainingStep(
         name="BERTModelTraining",
-        estimator=pytorch_estimator,
+        estimator=estimator,
         inputs={"training": TrainingInput(s3_data="s3://path-to-your-dataset/")},
         experiment_config={
-            "TrialName": trial.trial_name,
+            "TrialName": trial_name,
             "TrialComponentDisplayName": "Training",
         },
     )
 
-    # define model metrics
+    return step
+
+
+def create_register_model_step(estimator, training_step):
+    """
+    Description:
+        - step: register the model
+        - SageMaker Model Registry
+    """
     model_metrics = ModelMetrics(
         model_statistics={
-            # Add your model evaluation metrics here
             # Example: "Accuracy": {"value": 0.8, "standard_deviation": 0.01}
         }
     )
 
-    # define the model registry
-    register_step = RegisterModel(
+    step = RegisterModel(
         name="RegisterBERTModel",
-        estimator=pytorch_estimator,
+        estimator=estimator,
         model_data=training_step.properties.ModelArtifacts.S3ModelArtifacts,
         content_types=["application/json"],
         response_types=["application/json"],
@@ -64,15 +92,32 @@ def get_sagemaker_pipeline():
         model_metrics=model_metrics,
     )
 
-    # define the pipeline
+    return step
+
+
+def main():
+    """
+    Description:
+        - main function to create and execute the SageMaker pipeline
+    """
+    experiment = create_experiment("MyBERTExperiment")
+    trial = create_trial(experiment.experiment_name)
+
+    pytorch_estimator = create_pytorch_estimator()
+    training_step = create_training_step(pytorch_estimator, trial.trial_name)
+    register_step = create_register_model_step(pytorch_estimator, training_step)
+
     pipeline = Pipeline(
         name="BERT-Training-Pipeline",
         steps=[training_step, register_step],
         sagemaker_session=PipelineSession(),
     )
 
-    return pipeline
+    pipeline.upsert(role_arn=sagemaker.get_execution_role())
+
+    execution = pipeline.start()
+    print(f"Pipeline execution started with ARN: {execution.arn}")
 
 
-pipeline = get_sagemaker_pipeline()
-pipeline.upsert(role_arn=sagemaker.get_execution_role())
+if __name__ == "__main__":
+    main()
