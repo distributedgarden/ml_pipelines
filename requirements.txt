@@ -6,3 +6,9 @@ pathspec==0.11.2
 platformdirs==3.11.0
 tomli==2.0.1
 typing_extensions==4.8.0
+torch==1.8.1
+transformers==4.5.0
+torchtext==0.9.1
+boto3==1.17.44
+sagemaker==2.41.0
+sklearn==0.24.1
