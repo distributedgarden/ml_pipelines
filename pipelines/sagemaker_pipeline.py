@@ -1,4 +1,6 @@
+import boto3
 import sagemaker
+
 from sagemaker.workflow.pipeline import Pipeline
 from sagemaker.workflow.steps import TrainingStep, RegisterModel
 from sagemaker.workflow.pipeline_context import PipelineSession
@@ -7,6 +9,28 @@ from sagemaker.experiments import Experiment, Trial
 from sagemaker.inputs import TrainingInput
 from sagemaker.model_metrics import ModelMetrics
 from sagemaker.workflow.step_collections import RegisterModel
+
+
+def get_latest_ecr_image_uri(repository_name, aws_region):
+    """
+    Description:
+        - fetch the latest image URI from an ECR repository
+    """
+    ecr_client = boto3.client("ecr", region_name=aws_region)
+    try:
+        response = ecr_client.describe_images(
+            repositoryName=repository_name, maxResults=1
+        )
+        image_details = response["imageDetails"][0]
+        image_digest = image_details["imageDigest"]
+        image_uri = f"{repository_name}@{image_digest}"
+
+        return image_uri
+
+    except Exception as e:
+        print(f"Error fetching image URI: {e}")
+
+        return None
 
 
 def create_experiment(name):
@@ -33,16 +57,15 @@ def create_trial(experiment_name):
     return trial
 
 
-def create_pytorch_estimator():
+def create_pytorch_estimator(ecr_image_uri):
     """
     Description:
-        - estimator for training
+        - estimator for training using a custom ECR image
     """
     estimator = PyTorch(
-        entry_point="training/train.py",
+        entry_point="train.py",
         role=sagemaker.get_execution_role(),
-        framework_version="1.8.1",
-        py_version="py3",
+        image_uri=ecr_image_uri,
         instance_count=1,
         instance_type="ml.m5.large",
     )
@@ -98,12 +121,19 @@ def create_register_model_step(estimator, training_step):
 def main():
     """
     Description:
-        - main function to create and execute the SageMaker pipeline
+        - run pipeline
     """
+    ecr_repository_name = "sagemaker-ml-pipelines"
+    aws_region = "us-east-1"
+    ecr_image_uri = get_latest_ecr_image_uri(ecr_repository_name, aws_region)
+
+    if not ecr_image_uri:
+        raise RuntimeError("ECR image URI could not be fetched")
+
     experiment = create_experiment("MyBERTExperiment")
     trial = create_trial(experiment.experiment_name)
 
-    pytorch_estimator = create_pytorch_estimator()
+    pytorch_estimator = create_pytorch_estimator(ecr_image_uri)
     training_step = create_training_step(pytorch_estimator, trial.trial_name)
     register_step = create_register_model_step(pytorch_estimator, training_step)
 
@@ -114,7 +144,6 @@ def main():
     )
 
     pipeline.upsert(role_arn=sagemaker.get_execution_role())
-
     execution = pipeline.start()
     print(f"Pipeline execution started with ARN: {execution.arn}")
 
