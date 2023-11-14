@@ -1,14 +1,14 @@
 import boto3
 import sagemaker
-
 from sagemaker.workflow.pipeline import Pipeline
 from sagemaker.workflow.steps import TrainingStep
 from sagemaker.workflow.pipeline_context import PipelineSession
 from sagemaker.pytorch import PyTorch
-from sagemaker.experiments import Experiment, Trial
 from sagemaker.inputs import TrainingInput
 from sagemaker.model_metrics import ModelMetrics
 from sagemaker.workflow.step_collections import RegisterModel
+from sagemaker.experiments import Experiment
+from smexperiments.trial import Trial
 
 
 def get_latest_ecr_image_uri(repository_name, aws_region):
