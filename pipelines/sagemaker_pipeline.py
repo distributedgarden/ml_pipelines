@@ -27,15 +27,19 @@ def fetch_ecr_image_uri(repository_name: str, region: str):
     ecr_client = boto3.client("ecr", region_name=region)
     try:
         response = ecr_client.describe_images(
-            repositoryName=repository_name, maxResults=1
+            repositoryName=repository_name, maxResults=1, filter={"tagStatus": "TAGGED"}
         )
         image_details = response["imageDetails"][0]
-        image_digest = image_details["imageDigest"]
+        image_tag = image_details["imageTags"][
+            0
+        ]  # Assuming the first tag is the one we want
+        repository_url = f"{ecr_client.meta.endpoint_url}/{repository_name}"
 
-        return f"{repository_name}@{image_digest}"
+        return f"{repository_url}:{image_tag}"
 
     except Exception as error:
         print(f"Error fetching ECR image URI: {error}")
+
         return None
 
 
@@ -63,7 +67,7 @@ def setup_pytorch_estimator(image_uri, sagemaker_session, role_arn):
     """Set up a PyTorch estimator for training using a custom ECR image."""
     return PyTorch(
         entry_point="train.py",
-        #role=sagemaker_session.get_caller_identity_arn(),
+        # role=sagemaker_session.get_caller_identity_arn(),
         role=role_arn,
         image_uri=image_uri,
         instance_count=1,
