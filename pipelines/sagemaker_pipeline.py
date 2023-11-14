@@ -1,6 +1,7 @@
 import boto3
 import datetime
 import sagemaker
+import os
 
 from sagemaker.session import Session
 from sagemaker.workflow.pipeline import Pipeline
