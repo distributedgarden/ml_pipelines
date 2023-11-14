@@ -32,7 +32,7 @@ def create_sagemaker_experiment(name, sagemaker_session):
     return Experiment.create(
         experiment_name=name,
         description="Experiment to fine-tune BERT model",
-        sagemaker_boto_client=sagemaker_session.sagemaker_client,
+        sagemaker_boto_client=sagemaker_session.boto_session.client("sagemaker"),
     )
 
 
@@ -42,7 +42,7 @@ def create_sagemaker_trial(experiment_name, sagemaker_session):
     return Trial.create(
         trial_name=trial_name,
         experiment_name=experiment_name,
-        sagemaker_boto_client=sagemaker_session.sagemaker_client,
+        sagemaker_boto_client=sagemaker_session.boto_session.client("sagemaker"),
     )
 
 
