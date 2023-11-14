@@ -104,7 +104,7 @@ def setup_model_registration_step(estimator, training_step):
         inference_instances=["ml.t2.medium", "ml.m5.large"],
         transform_instances=["ml.m5.large"],
         model_package_group_name="BERTModelPackageGroup",
-        model_metrics=model_metrics,
+        #model_metrics=model_metrics,
     )
 
 
