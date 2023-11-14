@@ -60,6 +60,7 @@ def create_sagemaker_trial(experiment_name):
 def setup_pytorch_estimator(image_uri, sagemaker_session):
     """Set up a PyTorch estimator for training using a custom ECR image."""
     return PyTorch(
+        entry_point="train.py",
         role=sagemaker_session.get_caller_identity_arn(),
         image_uri=image_uri,
         instance_count=1,
