@@ -17,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 class CustomDataset(Dataset):
     """
-    Description:
-        - Dataset class for handling CSV format data
+    Dataset class for handling CSV format data.
     """
 
     def __init__(self, tokenizer, file_path):
@@ -27,8 +26,7 @@ class CustomDataset(Dataset):
 
     def load_data(self, file_path):
         """
-        Description:
-            - load and preprocess data from a CSV file
+        Load and preprocess data from a CSV file.
         """
         try:
             samples = []
@@ -39,9 +37,7 @@ class CustomDataset(Dataset):
                     label, text = row
                     samples.append((int(label), text))
             logger.info("Data loaded successfully from %s", file_path)
-
             return samples
-
         except Exception as e:
             logger.error("Failed to load data from %s: %s", file_path, e)
             raise
@@ -66,8 +62,7 @@ class CustomDataset(Dataset):
 
 def train(model, dataloader, optimizer, device):
     """
-    Description
-        - train the model for one epoch
+    Train the model for one epoch.
     """
     model.train()
     total_acc, total_count, total_loss = 0, 0, 0
@@ -86,7 +81,7 @@ def train(model, dataloader, optimizer, device):
         clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
 
-        # compute and log metrics
+        # Compute and log metrics
         total_loss += loss.item()
         total_acc += (outputs.logits.argmax(1) == label).sum().item()
         total_count += label.size(0)
@@ -108,35 +103,35 @@ def train(model, dataloader, optimizer, device):
 
 def main():
     """
-    Description:
-        - execute training
+    Execute training.
     """
-    input_data_path = os.environ["SM_CHANNEL_TRAIN"]
-    output_model_path = os.environ["SM_MODEL_DIR"]
-
-    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-    dataset = CustomDataset(tokenizer, os.path.join(input_data_path, "train.csv"))
-    train_dataset, _ = train_test_split(dataset, test_size=0.1)
-
-    train_dataloader = DataLoader(train_dataset, batch_size=8, shuffle=True)
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = BertForSequenceClassification.from_pretrained("bert-base-uncased")
-    model.to(device)
-
-    optimizer = AdamW(model.parameters(), lr=5e-5)
-
-    for epoch in range(3):
-        train_acc = train(model, train_dataloader, optimizer, device)
-        print(f"Epoch {epoch}, Training Accuracy: {train_acc}")
-
-    model_save_path = os.path.join(output_model_path, "model.pth")
-    torch.save(model.state_dict(), model_save_path)
-
-
-if __name__ == "__main__":
     try:
-        main()
+        input_data_path = os.environ["SM_CHANNEL_TRAIN"]
+        output_model_path = os.environ["SM_MODEL_DIR"]
+
+        tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+        dataset = CustomDataset(tokenizer, os.path.join(input_data_path, "train.csv"))
+        train_dataset, _ = train_test_split(dataset, test_size=0.1)
+
+        train_dataloader = DataLoader(train_dataset, batch_size=8, shuffle=True)
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = BertForSequenceClassification.from_pretrained("bert-base-uncased")
+        model.to(device)
+
+        optimizer = AdamW(model.parameters(), lr=5e-5)
+
+        for epoch in range(3):
+            train_acc = train(model, train_dataloader, optimizer, device)
+            logger.info(f"Epoch {epoch}, Training Accuracy: {train_acc}")
+
+        model_save_path = os.path.join(output_model_path, "model.pth")
+        torch.save(model.state_dict(), model_save_path)
+
     except Exception as e:
         logger.error("Training failed: %s", e)
         raise
+
+
+if __name__ == "__main__":
+    main()
