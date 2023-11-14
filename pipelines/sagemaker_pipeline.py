@@ -17,13 +17,15 @@ from smexperiments.trial import Trial
 
 def fetch_ecr_image_uri(repository_name: str, region: str, aws_account_id: str):
     """
-    Description:
-        - fetch the latest image URI from an ECR repository
+    Fetch the URI of the latest image from an ECR repository.
 
     Args:
-        - repository_name: ECR repository name
-        - region: AWS region
-        - aws_account_id: AWS account ID
+        repository_name (str): Name of the ECR repository.
+        region (str): AWS region where the repository is located.
+        aws_account_id (str): AWS account ID.
+
+    Returns:
+        str: URI of the latest image or None if not found.
     """
     repository_url = (
         f"{aws_account_id}.dkr.ecr.{region}.amazonaws.com/{repository_name}"
@@ -31,23 +33,20 @@ def fetch_ecr_image_uri(repository_name: str, region: str, aws_account_id: str):
     ecr_client = boto3.client("ecr", region_name=region)
 
     try:
-        response = ecr_client.describe_images(
-            repositoryName=repository_name,
-            filter={"tagStatus": "TAGGED", "tagPrefixes": ["latest"]},
-        )
-        image_details = response["imageDetails"][0]
-        image_tag = next(
-            (tag for tag in image_details["imageTags"] if tag == "latest"), None
-        )
+        # Get details of all images in the repository
+        response = ecr_client.describe_images(repositoryName=repository_name)
+        image_details = response["imageDetails"]
 
-        if image_tag:
-            return f"{repository_url}:{image_tag}"
-        else:
-            raise Exception("Latest tag not found.")
+        # Find the image with the 'latest' tag
+        for image in image_details:
+            if "latest" in image.get("imageTags", []):
+                return f"{repository_url}:{image['imageTags'][0]}"
+
+        # 'latest' tag not found
+        raise Exception("Latest tag not found.")
 
     except Exception as error:
         print(f"Error fetching ECR image URI: {error}")
-
         return None
 
 
