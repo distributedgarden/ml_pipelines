@@ -112,7 +112,7 @@ def main():
         input_data_path = os.environ.get(
             "SM_CHANNEL_TRAIN", "opt/ml/input/data/training"
         )
-        output_model_path = os.environ["SM_MODEL_DIR"]
+        output_model_path = os.environ.get("SM_MODEL_DIR", "tmp/model")
 
         tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
         dataset = CustomDataset(tokenizer, os.path.join(input_data_path, "train.csv"))
