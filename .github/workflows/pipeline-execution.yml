@@ -24,4 +24,5 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: 'us-east-1'
           AWS_SAGEMAKER_ER_ARN: ${{ secrets.AWS_SAGEMAKER_ER_ARN }}
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         run: python pipelines/sagemaker_pipeline.py

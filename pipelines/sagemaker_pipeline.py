@@ -15,7 +15,7 @@ from sagemaker.experiments import Experiment
 from smexperiments.trial import Trial
 
 
-def fetch_ecr_image_uri(repository_name: str, region: str):
+def fetch_ecr_image_uri(repository_name: str, region: str, aws_account_id: str):
     """
     Description:
         - fetch the latest image URI from an ECR repository
@@ -23,19 +23,27 @@ def fetch_ecr_image_uri(repository_name: str, region: str):
     Args:
         - repository_name: ECR repository name
         - region: AWS region
+        - aws_account_id: AWS account ID
     """
+    repository_url = (
+        f"{aws_account_id}.dkr.ecr.{region}.amazonaws.com/{repository_name}"
+    )
     ecr_client = boto3.client("ecr", region_name=region)
+
     try:
         response = ecr_client.describe_images(
-            repositoryName=repository_name, maxResults=1, filter={"tagStatus": "TAGGED"}
+            repositoryName=repository_name,
+            filter={"tagStatus": "TAGGED", "tagPrefixes": ["latest"]},
         )
         image_details = response["imageDetails"][0]
-        image_tag = image_details["imageTags"][
-            0
-        ]  # Assuming the first tag is the one we want
-        repository_url = f"{ecr_client.meta.endpoint_url}/{repository_name}"
+        image_tag = next(
+            (tag for tag in image_details["imageTags"] if tag == "latest"), None
+        )
 
-        return f"{repository_url}:{image_tag}"
+        if image_tag:
+            return f"{repository_url}:{image_tag}"
+        else:
+            raise Exception("Latest tag not found.")
 
     except Exception as error:
         print(f"Error fetching ECR image URI: {error}")
@@ -106,6 +114,7 @@ def main():
     # aws_region = "us-east-1"
     aws_region = os.getenv("AWS_REGION", "us-east-1")
     role_arn = os.getenv("AWS_SAGEMAKER_ER_ARN")
+    aws_account_id = os.getenv("AWS_ACCOUNT_ID")
 
     if not role_arn:
         raise ValueError("SageMaker execution role ARN is required")
@@ -114,7 +123,7 @@ def main():
     sagemaker_session = Session(boto_session=boto_session)
 
     repo_name = "sagemaker-ml-pipelines"
-    image_uri = fetch_ecr_image_uri(repo_name, aws_region)
+    image_uri = fetch_ecr_image_uri(repo_name, aws_region, aws_account_id)
 
     print(f"\n>>>>image_uri: {image_uri}")
 
