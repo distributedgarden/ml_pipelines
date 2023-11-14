@@ -53,7 +53,6 @@ def setup_pytorch_estimator(image_uri, sagemaker_session):
     """Set up a PyTorch estimator for training using a custom ECR image."""
     return PyTorch(
         entry_point="train.py",
-        # role=sagemaker.get_execution_role(),
         role=sagemaker_session.get_caller_identity_arn(),
         image_uri=image_uri,
         instance_count=1,
@@ -62,16 +61,12 @@ def setup_pytorch_estimator(image_uri, sagemaker_session):
     )
 
 
-def setup_training_step(estimator, trial_name):
+def setup_training_step(estimator):
     """Set up the training step for the pipeline."""
     return TrainingStep(
         name="BERTModelTraining",
         estimator=estimator,
         inputs={"training": TrainingInput(s3_data="s3://imdb-content/train.csv")},
-        experiment_config={
-            "TrialName": trial_name,
-            "TrialComponentDisplayName": "Training",
-        },
     )
 
 
@@ -107,7 +102,7 @@ def main():
     trial = create_sagemaker_trial(experiment.experiment_name)
 
     estimator = setup_pytorch_estimator(image_uri, sagemaker_session)
-    training_step = setup_training_step(estimator, trial.trial_name)
+    training_step = setup_training_step(estimator)
     registration_step = setup_model_registration_step(estimator, training_step)
 
     pipeline = Pipeline(
