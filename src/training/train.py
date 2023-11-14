@@ -106,6 +106,9 @@ def main():
     Execute training.
     """
     try:
+        for key, value in os.environ.items():
+            logger.info(f"{key}: {value}")
+
         input_data_path = os.environ.get(
             "SM_CHANNEL_TRAIN", "opt/ml/input/data/training"
         )
