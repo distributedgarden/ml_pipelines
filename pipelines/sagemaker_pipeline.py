@@ -12,6 +12,7 @@ from sagemaker.inputs import TrainingInput
 from sagemaker.model_metrics import ModelMetrics
 from sagemaker.workflow.step_collections import RegisterModel
 from sagemaker.experiments import Experiment
+from sagemaker.estimator import Estimator
 from smexperiments.trial import Trial
 
 
@@ -79,22 +80,33 @@ def create_sagemaker_trial(experiment_name):
 
 def setup_pytorch_estimator(image_uri, sagemaker_session, role_arn):
     """Set up a PyTorch estimator for training using a custom ECR image."""
-    metric_definitions = [
-        {"Name": "loss", "Regex": "Loss: ([0-9\\.]+)"},
-        {"Name": "accuracy", "Regex": "Accuracy: ([0-9\\.]+)"},
-    ]
+    # metric_definitions = [
+    #    {"Name": "loss", "Regex": "Loss: ([0-9\\.]+)"},
+    #    {"Name": "accuracy", "Regex": "Accuracy: ([0-9\\.]+)"},
+    # ]
 
-    return PyTorch(
-        entry_point="train.py",
-        source_dir="src/training",
+    # return PyTorch(
+    #    entry_point="train.py",
+    #    source_dir="src/training",
+    #    role=role_arn,
+    #    image_uri=image_uri,  # custom image
+    #    # framework_version="2.1.0",  # sm image: pytorch version
+    #    # py_version="py3",           # sm image: py version
+    #    instance_count=1,
+    #    instance_type="ml.m5.large",
+    #    sagemaker_session=sagemaker_session,
+    #    metric_definitions=metric_definitions,
+    # )
+
+    return Estimator(
+        image_uri=image_uri,
         role=role_arn,
-        image_uri=image_uri,  # custom image
-        # framework_version="2.1.0",  # sm image: pytorch version
-        # py_version="py3",           # sm image: py version
         instance_count=1,
         instance_type="ml.m5.large",
         sagemaker_session=sagemaker_session,
-        metric_definitions=metric_definitions,
+        hyperparameters={
+            "entry_point": "train.py"
+        },  # Assuming you need to pass entry point
     )
 
 
@@ -126,7 +138,8 @@ def setup_model_registration_step(estimator, training_step):
 def main():
     """Main function to execute the SageMaker pipeline."""
     try:
-        # aws_region = "us-east-1"
+        logger.info("Starting training...")
+
         aws_region = os.getenv("AWS_REGION", "us-east-1")
         role_arn = os.getenv("AWS_SAGEMAKER_ER_ARN")
         aws_account_id = os.getenv("AWS_ACCOUNT_ID")
