@@ -1,5 +1,6 @@
 import boto3
 import sagemaker
+
 from sagemaker.session import Session
 from sagemaker.workflow.pipeline import Pipeline
 from sagemaker.workflow.steps import TrainingStep
@@ -27,20 +28,22 @@ def fetch_ecr_image_uri(repository_name, region):
         return None
 
 
-def create_sagemaker_experiment(name):
+def create_sagemaker_experiment(name, sagemaker_session):
     """Create a SageMaker experiment."""
     return Experiment.create(
         experiment_name=name,
         description="Experiment to fine-tune BERT model",
+        sagemaker_session=sagemaker_session,
     )
 
 
-def create_sagemaker_trial(experiment_name):
+def create_sagemaker_trial(experiment_name, sagemaker_session):
     """Create a trial for the experiment."""
     trial_name = f"MyBERTTrial-{sagemaker.utils.sagemaker_timestamp()}"
     return Trial.create(
         trial_name=trial_name,
         experiment_name=experiment_name,
+        sagemaker_session=sagemaker_session,
     )
 
 
@@ -97,8 +100,8 @@ def main():
     if not image_uri:
         raise RuntimeError("Failed to fetch ECR image URI.")
 
-    experiment = create_sagemaker_experiment("MyBERTExperiment")
-    trial = create_sagemaker_trial(experiment.experiment_name)
+    experiment = create_sagemaker_experiment("MyBERTExperiment", sagemaker_session)
+    trial = create_sagemaker_trial(experiment.experiment_name, sagemaker_session)
 
     estimator = setup_pytorch_estimator(image_uri, sagemaker_session)
     training_step = setup_training_step(estimator, trial.trial_name)
