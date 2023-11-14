@@ -73,7 +73,7 @@ def create_sagemaker_trial(experiment_name):
 def setup_pytorch_estimator(image_uri, sagemaker_session, role_arn):
     """Set up a PyTorch estimator for training using a custom ECR image."""
     return PyTorch(
-        entry_point="train.py",
+        entry_point="src/training/train.py",
         # role=sagemaker_session.get_caller_identity_arn(),
         role=role_arn,
         image_uri=image_uri,
@@ -123,8 +123,6 @@ def main():
 
     repo_name = "sagemaker-ml-pipelines"
     image_uri = fetch_ecr_image_uri(repo_name, aws_region, aws_account_id)
-
-    print("\n>>> Current directory contents:", os.listdir())
 
     if not image_uri:
         raise RuntimeError("Failed to fetch ECR image URI.")
