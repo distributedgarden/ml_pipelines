@@ -15,8 +15,15 @@ from sagemaker.experiments import Experiment
 from smexperiments.trial import Trial
 
 
-def fetch_ecr_image_uri(repository_name, region):
-    """Fetch the latest image URI from an ECR repository."""
+def fetch_ecr_image_uri(repository_name: str, region: str):
+    """
+    Description:
+        - fetch the latest image URI from an ECR repository
+
+    Args:
+        - repository_name: ECR repository name
+        - region: AWS region
+    """
     ecr_client = boto3.client("ecr", region_name=region)
     try:
         response = ecr_client.describe_images(
