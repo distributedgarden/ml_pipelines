@@ -88,7 +88,9 @@ def setup_pytorch_estimator(image_uri, sagemaker_session, role_arn):
         entry_point="train.py",
         source_dir="src/training",
         role=role_arn,
-        image_uri=image_uri,
+        image_uri=image_uri,  # custom image
+        # framework_version="2.1.0",  # sm image: pytorch version
+        # py_version="py3",           # sm image: py version
         instance_count=1,
         instance_type="ml.m5.large",
         sagemaker_session=sagemaker_session,
