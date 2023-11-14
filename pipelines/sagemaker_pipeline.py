@@ -54,7 +54,7 @@ def setup_pytorch_estimator(image_uri, sagemaker_session):
     return PyTorch(
         entry_point="train.py",
         # role=sagemaker.get_execution_role(),
-        role=sagemaker_session.get_caller_identity_urn(),
+        role=sagemaker_session.get_caller_identity_arn(),
         image_uri=image_uri,
         instance_count=1,
         instance_type="ml.m5.large",
