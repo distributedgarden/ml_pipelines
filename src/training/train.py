@@ -1,10 +1,18 @@
 import os
 import csv
 import torch
+import logging
+
 from torch.utils.data import DataLoader, Dataset
 from torch.nn.utils import clip_grad_norm_
 from sklearn.model_selection import train_test_split
 from transformers import BertTokenizer, BertForSequenceClassification, AdamW
+
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s: %(levelname)s: %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 class CustomDataset(Dataset):
@@ -22,15 +30,21 @@ class CustomDataset(Dataset):
         Description:
             - load and preprocess data from a CSV file
         """
-        samples = []
-        with open(file_path, "r", encoding="utf-8") as f:
-            reader = csv.reader(f)
-            next(reader)  # Skip the header row if it exists
-            for row in reader:
-                label, text = row
-                samples.append((int(label), text))
+        try:
+            samples = []
+            with open(file_path, "r", encoding="utf-8") as f:
+                reader = csv.reader(f)
+                next(reader)  # Skip the header row if it exists
+                for row in reader:
+                    label, text = row
+                    samples.append((int(label), text))
+            logger.info("Data loaded successfully from %s", file_path)
 
-        return samples
+            return samples
+
+        except Exception as e:
+            logger.error("Failed to load data from %s: %s", file_path, e)
+            raise
 
     def __len__(self):
         return len(self.samples)
@@ -56,7 +70,7 @@ def train(model, dataloader, optimizer, device):
         - train the model for one epoch
     """
     model.train()
-    total_acc, total_count = 0, 0
+    total_acc, total_count, total_loss = 0, 0, 0
 
     for idx, (label, input_ids, attention_mask) in enumerate(dataloader):
         input_ids, attention_mask, label = (
@@ -72,8 +86,22 @@ def train(model, dataloader, optimizer, device):
         clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
 
+        # compute and log metrics
+        total_loss += loss.item()
         total_acc += (outputs.logits.argmax(1) == label).sum().item()
         total_count += label.size(0)
+
+        if (idx + 1) % 10 == 0:  # Log every 10 batches
+            logger.info(
+                f"Batch {idx + 1}: Loss: {total_loss / (idx + 1)}, "
+                f"Accuracy: {total_acc / total_count}"
+            )
+
+    # Log epoch-level metrics
+    logger.info(
+        f"Training completed: Total Loss: {total_loss / len(dataloader)}, "
+        f"Total Accuracy: {total_acc / total_count}"
+    )
 
     return total_acc / total_count
 
@@ -107,4 +135,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        logger.error("Training failed: %s", e)
+        raise
