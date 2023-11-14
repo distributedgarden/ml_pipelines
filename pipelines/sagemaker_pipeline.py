@@ -59,7 +59,14 @@ def fetch_ecr_image_uri(repository_name: str, region: str, aws_account_id: str):
 
 
 def create_sagemaker_experiment(base_name, sagemaker_session):
-    """Create a SageMaker experiment with a unique name."""
+    """
+    Description:
+        - create a SageMaker experiment with a unique name
+
+    Args:
+        - base_name: experiment base name in SageMaker
+        - sagemaker_session: SDK session
+    """
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     unique_name = f"{base_name}-{timestamp}"
     return Experiment.create(
