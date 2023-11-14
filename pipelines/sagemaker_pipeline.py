@@ -2,17 +2,24 @@ import boto3
 import datetime
 import sagemaker
 import os
+import logging
 
 from sagemaker.session import Session
 from sagemaker.workflow.pipeline import Pipeline
 from sagemaker.workflow.steps import TrainingStep
-from sagemaker.workflow.pipeline_context import PipelineSession
 from sagemaker.pytorch import PyTorch
 from sagemaker.inputs import TrainingInput
 from sagemaker.model_metrics import ModelMetrics
 from sagemaker.workflow.step_collections import RegisterModel
 from sagemaker.experiments import Experiment
 from smexperiments.trial import Trial
+
+
+# configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s: %(levelname)s: %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 def fetch_ecr_image_uri(repository_name: str, region: str, aws_account_id: str):
@@ -72,14 +79,19 @@ def create_sagemaker_trial(experiment_name):
 
 def setup_pytorch_estimator(image_uri, sagemaker_session, role_arn):
     """Set up a PyTorch estimator for training using a custom ECR image."""
+    metric_definitions = [
+        {"Name": "loss", "Regex": "Loss: ([0-9\\.]+)"},
+        {"Name": "accuracy", "Regex": "Accuracy: ([0-9\\.]+)"},
+    ]
+
     return PyTorch(
-        entry_point="src/training/train.py",
-        # role=sagemaker_session.get_caller_identity_arn(),
+        entry_point="/opt/ml/code/train.py",
         role=role_arn,
         image_uri=image_uri,
         instance_count=1,
         instance_type="ml.m5.large",
         sagemaker_session=sagemaker_session,
+        metric_definitions=metric_definitions,
     )
 
 
@@ -110,39 +122,45 @@ def setup_model_registration_step(estimator, training_step):
 
 def main():
     """Main function to execute the SageMaker pipeline."""
-    # aws_region = "us-east-1"
-    aws_region = os.getenv("AWS_REGION", "us-east-1")
-    role_arn = os.getenv("AWS_SAGEMAKER_ER_ARN")
-    aws_account_id = os.getenv("AWS_ACCOUNT_ID")
+    try:
+        # aws_region = "us-east-1"
+        aws_region = os.getenv("AWS_REGION", "us-east-1")
+        role_arn = os.getenv("AWS_SAGEMAKER_ER_ARN")
+        aws_account_id = os.getenv("AWS_ACCOUNT_ID")
 
-    if not role_arn:
-        raise ValueError("SageMaker execution role ARN is required")
+        if not role_arn:
+            raise ValueError("SageMaker execution role ARN is required")
 
-    boto_session = boto3.Session(region_name=aws_region)
-    sagemaker_session = Session(boto_session=boto_session)
+        boto_session = boto3.Session(region_name=aws_region)
+        sagemaker_session = Session(boto_session=boto_session)
 
-    repo_name = "sagemaker-ml-pipelines"
-    image_uri = fetch_ecr_image_uri(repo_name, aws_region, aws_account_id)
+        repo_name = "sagemaker-ml-pipelines"
+        image_uri = fetch_ecr_image_uri(repo_name, aws_region, aws_account_id)
 
-    if not image_uri:
-        raise RuntimeError("Failed to fetch ECR image URI.")
+        if not image_uri:
+            raise RuntimeError("Failed to fetch ECR image URI.")
 
-    experiment = create_sagemaker_experiment("MyBERTExperiment", sagemaker_session)
-    trial = create_sagemaker_trial(experiment.experiment_name)
+        experiment = create_sagemaker_experiment("MyBERTExperiment", sagemaker_session)
+        trial = create_sagemaker_trial(experiment.experiment_name)
 
-    estimator = setup_pytorch_estimator(image_uri, sagemaker_session, role_arn)
-    training_step = setup_training_step(estimator)
-    registration_step = setup_model_registration_step(estimator, training_step)
+        estimator = setup_pytorch_estimator(image_uri, sagemaker_session, role_arn)
+        training_step = setup_training_step(estimator)
+        registration_step = setup_model_registration_step(estimator, training_step)
 
-    pipeline = Pipeline(
-        name="BERT-Training-Pipeline",
-        steps=[training_step, registration_step],
-        sagemaker_session=sagemaker_session,
-    )
+        pipeline = Pipeline(
+            name="BERT-Training-Pipeline",
+            steps=[training_step, registration_step],
+            sagemaker_session=sagemaker_session,
+        )
 
-    pipeline.upsert(role_arn=role_arn)
-    execution = pipeline.start()
-    print(f"Pipeline execution started with ARN: {execution.arn}")
+        pipeline.upsert(role_arn=role_arn)
+        execution = pipeline.start()
+
+        logger.info(f"Pipeline execution started")
+
+    except Exception as e:
+        logger.error("Pipeline execution failed: %s", e)
+        raise
 
 
 if __name__ == "__main__":
