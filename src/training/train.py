@@ -106,13 +106,13 @@ def main():
     Execute training.
     """
     try:
-        for key, value in os.environ.items():
-            logger.info(f"{key}: {value}")
-
         input_data_path = os.environ.get(
-            "SM_CHANNEL_TRAIN", "opt/ml/input/data/training"
+            "SM_CHANNEL_TRAINING", "/opt/ml/input/data/training"
         )
-        output_model_path = os.environ.get("SM_MODEL_DIR", "tmp/model")
+        output_model_path = os.environ.get("SM_MODEL_DIR", "/opt/ml/model")
+
+        logger.info(f"input_data_path: {input_data_path}")
+        logger.info(f"output_model_path: {output_model_path}")
 
         tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
         dataset = CustomDataset(tokenizer, os.path.join(input_data_path, "train.csv"))
