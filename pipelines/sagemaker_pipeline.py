@@ -124,7 +124,7 @@ def main():
     repo_name = "sagemaker-ml-pipelines"
     image_uri = fetch_ecr_image_uri(repo_name, aws_region, aws_account_id)
 
-    print(f"\n>>>>image_uri: {image_uri}")
+    print("\n>>> Current directory contents:", os.listdir())
 
     if not image_uri:
         raise RuntimeError("Failed to fetch ECR image URI.")
