@@ -88,7 +88,13 @@ def setup_model_registration_step(estimator, training_step):
 
 def main():
     """Main function to execute the SageMaker pipeline."""
-    aws_region = "us-east-1"
+    # aws_region = "us-east-1"
+    aws_region = os.getenv("AWS_REGION", "us-east-1")
+    role_arn = os.getenv("AWS_SAGEMAKER_ER_ARN")
+
+    if not role_arn:
+        raise ValueError("SageMaker execution role ARN is required")
+
     boto_session = boto3.Session(region_name=aws_region)
     sagemaker_session = Session(boto_session=boto_session)
 
@@ -111,7 +117,7 @@ def main():
         sagemaker_session=sagemaker_session,
     )
 
-    pipeline.upsert(role_arn=sagemaker.get_execution_role())
+    pipeline.upsert(role_arn=role_arn)
     execution = pipeline.start()
     print(f"Pipeline execution started with ARN: {execution.arn}")
 
