@@ -85,7 +85,8 @@ def setup_pytorch_estimator(image_uri, sagemaker_session, role_arn):
     ]
 
     return PyTorch(
-        entry_point="/opt/ml/code/train.py",
+        entry_point="train.py",
+        source_dir="src/training",
         role=role_arn,
         image_uri=image_uri,
         instance_count=1,
