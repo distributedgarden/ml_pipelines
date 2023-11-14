@@ -109,7 +109,7 @@ def setup_pytorch_estimator(image_uri, sagemaker_session, role_arn):
         image_uri=image_uri,
         role=role_arn,
         instance_count=1,
-        instance_type="ml.m5.large",
+        instance_type="ml.p3.2xlarge",
         sagemaker_session=sagemaker_session,
         hyperparameters={
             "entry_point": "train.py"
