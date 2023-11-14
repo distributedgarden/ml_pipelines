@@ -31,7 +31,9 @@ def fetch_ecr_image_uri(repository_name: str, region: str):
         )
         image_details = response["imageDetails"][0]
         image_digest = image_details["imageDigest"]
+
         return f"{repository_name}@{image_digest}"
+
     except Exception as error:
         print(f"Error fetching ECR image URI: {error}")
         return None
@@ -57,11 +59,12 @@ def create_sagemaker_trial(experiment_name):
     )
 
 
-def setup_pytorch_estimator(image_uri, sagemaker_session):
+def setup_pytorch_estimator(image_uri, sagemaker_session, role_arn):
     """Set up a PyTorch estimator for training using a custom ECR image."""
     return PyTorch(
-        entry_point="placeholder.py",
-        role=sagemaker_session.get_caller_identity_arn(),
+        entry_point="train.py",
+        #role=sagemaker_session.get_caller_identity_arn(),
+        role=role_arn,
         image_uri=image_uri,
         instance_count=1,
         instance_type="ml.m5.large",
@@ -109,13 +112,15 @@ def main():
     repo_name = "sagemaker-ml-pipelines"
     image_uri = fetch_ecr_image_uri(repo_name, aws_region)
 
+    print(f"\n>>>>image_uri: {image_uri}")
+
     if not image_uri:
         raise RuntimeError("Failed to fetch ECR image URI.")
 
     experiment = create_sagemaker_experiment("MyBERTExperiment", sagemaker_session)
     trial = create_sagemaker_trial(experiment.experiment_name)
 
-    estimator = setup_pytorch_estimator(image_uri, sagemaker_session)
+    estimator = setup_pytorch_estimator(image_uri, sagemaker_session, role_arn)
     training_step = setup_training_step(estimator)
     registration_step = setup_model_registration_step(estimator, training_step)
 
