@@ -34,7 +34,7 @@ class CustomDataset(Dataset):
                 reader = csv.reader(f)
                 next(reader)  # Skip the header row if it exists
                 for row in reader:
-                    label, text = row
+                    text, label = row
                     samples.append((int(label), text))
             logger.info("Data loaded successfully from %s", file_path)
             return samples
