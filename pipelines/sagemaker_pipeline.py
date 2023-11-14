@@ -2,7 +2,7 @@ import boto3
 import sagemaker
 
 from sagemaker.workflow.pipeline import Pipeline
-from sagemaker.workflow.steps import TrainingStep, RegisterModel
+from sagemaker.workflow.steps import TrainingStep
 from sagemaker.workflow.pipeline_context import PipelineSession
 from sagemaker.pytorch import PyTorch
 from sagemaker.experiments import Experiment, Trial
