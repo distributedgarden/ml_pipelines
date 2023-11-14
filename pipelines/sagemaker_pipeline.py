@@ -27,22 +27,20 @@ def fetch_ecr_image_uri(repository_name, region):
         return None
 
 
-def create_sagemaker_experiment(name, sagemaker_session):
+def create_sagemaker_experiment(name):
     """Create a SageMaker experiment."""
     return Experiment.create(
         experiment_name=name,
         description="Experiment to fine-tune BERT model",
-        sagemaker_boto_client=sagemaker_session.boto_session.client("sagemaker"),
     )
 
 
-def create_sagemaker_trial(experiment_name, sagemaker_session):
+def create_sagemaker_trial(experiment_name):
     """Create a trial for the experiment."""
     trial_name = f"MyBERTTrial-{sagemaker.utils.sagemaker_timestamp()}"
     return Trial.create(
         trial_name=trial_name,
         experiment_name=experiment_name,
-        sagemaker_boto_client=sagemaker_session.boto_session.client("sagemaker"),
     )
 
 
@@ -99,8 +97,8 @@ def main():
     if not image_uri:
         raise RuntimeError("Failed to fetch ECR image URI.")
 
-    experiment = create_sagemaker_experiment("MyBERTExperiment", sagemaker_session)
-    trial = create_sagemaker_trial(experiment.experiment_name, sagemaker_session)
+    experiment = create_sagemaker_experiment("MyBERTExperiment")
+    trial = create_sagemaker_trial(experiment.experiment_name)
 
     estimator = setup_pytorch_estimator(image_uri, sagemaker_session)
     training_step = setup_training_step(estimator, trial.trial_name)
