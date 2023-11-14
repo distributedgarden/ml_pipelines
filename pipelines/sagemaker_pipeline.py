@@ -1,4 +1,5 @@
 import boto3
+import datetime
 import sagemaker
 
 from sagemaker.session import Session
@@ -28,10 +29,12 @@ def fetch_ecr_image_uri(repository_name, region):
         return None
 
 
-def create_sagemaker_experiment(name, sagemaker_session):
-    """Create a SageMaker experiment."""
+def create_sagemaker_experiment(base_name, sagemaker_session):
+    """Create a SageMaker experiment with a unique name."""
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    unique_name = f"{base_name}-{timestamp}"
     return Experiment.create(
-        experiment_name=name,
+        experiment_name=unique_name,
         description="Experiment to fine-tune BERT model",
         sagemaker_session=sagemaker_session,
     )
