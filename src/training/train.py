@@ -106,7 +106,9 @@ def main():
     Execute training.
     """
     try:
-        input_data_path = os.environ["SM_CHANNEL_TRAIN"]
+        input_data_path = os.environ.get(
+            "SM_CHANNEL_TRAIN", "opt/ml/input/data/training"
+        )
         output_model_path = os.environ["SM_MODEL_DIR"]
 
         tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
