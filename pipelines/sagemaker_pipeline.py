@@ -1,5 +1,6 @@
 import boto3
 import sagemaker
+from sagemaker.session import Session
 from sagemaker.workflow.pipeline import Pipeline
 from sagemaker.workflow.steps import TrainingStep
 from sagemaker.workflow.pipeline_context import PipelineSession
@@ -11,74 +12,55 @@ from sagemaker.experiments import Experiment
 from smexperiments.trial import Trial
 
 
-def get_latest_ecr_image_uri(repository_name, aws_region):
-    """
-    Description:
-        - fetch the latest image URI from an ECR repository
-    """
-    ecr_client = boto3.client("ecr", region_name=aws_region)
+def fetch_ecr_image_uri(repository_name, region):
+    """Fetch the latest image URI from an ECR repository."""
+    ecr_client = boto3.client("ecr", region_name=region)
     try:
         response = ecr_client.describe_images(
             repositoryName=repository_name, maxResults=1
         )
         image_details = response["imageDetails"][0]
         image_digest = image_details["imageDigest"]
-        image_uri = f"{repository_name}@{image_digest}"
-
-        return image_uri
-
-    except Exception as e:
-        print(f"Error fetching image URI: {e}")
-
+        return f"{repository_name}@{image_digest}"
+    except Exception as error:
+        print(f"Error fetching ECR image URI: {error}")
         return None
 
 
-def create_experiment(name):
-    """
-    Description:
-        - create a SageMaker experiment
-        - experiments will enable tracking metadata for each training job
-    """
-    experiment = Experiment.create(
-        experiment_name=name, description="Experiment to fine-tune BERT model"
+def create_sagemaker_experiment(name, sagemaker_session):
+    """Create a SageMaker experiment."""
+    return Experiment.create(
+        experiment_name=name,
+        description="Experiment to fine-tune BERT model",
+        sagemaker_boto_client=sagemaker_session.sagemaker_client,
     )
 
-    return experiment
 
-
-def create_trial(experiment_name):
-    """
-    Description:
-        - create a trial for the experiment.
-    """
+def create_sagemaker_trial(experiment_name, sagemaker_session):
+    """Create a trial for the experiment."""
     trial_name = f"MyBERTTrial-{sagemaker.utils.sagemaker_timestamp()}"
-    trial = Trial.create(trial_name=trial_name, experiment_name=experiment_name)
+    return Trial.create(
+        trial_name=trial_name,
+        experiment_name=experiment_name,
+        sagemaker_boto_client=sagemaker_session.sagemaker_client,
+    )
 
-    return trial
 
-
-def create_pytorch_estimator(ecr_image_uri):
-    """
-    Description:
-        - estimator for training using a custom ECR image
-    """
-    estimator = PyTorch(
+def setup_pytorch_estimator(image_uri, sagemaker_session):
+    """Set up a PyTorch estimator for training using a custom ECR image."""
+    return PyTorch(
         entry_point="train.py",
         role=sagemaker.get_execution_role(),
-        image_uri=ecr_image_uri,
+        image_uri=image_uri,
         instance_count=1,
         instance_type="ml.m5.large",
+        sagemaker_session=sagemaker_session,
     )
 
-    return estimator
 
-
-def create_training_step(estimator, trial_name):
-    """
-    Description:
-        - step: training
-    """
-    step = TrainingStep(
+def setup_training_step(estimator, trial_name):
+    """Set up the training step for the pipeline."""
+    return TrainingStep(
         name="BERTModelTraining",
         estimator=estimator,
         inputs={"training": TrainingInput(s3_data="s3://imdb-content/train.csv")},
@@ -88,22 +70,11 @@ def create_training_step(estimator, trial_name):
         },
     )
 
-    return step
 
-
-def create_register_model_step(estimator, training_step):
-    """
-    Description:
-        - step: register the model
-        - SageMaker Model Registry
-    """
-    model_metrics = ModelMetrics(
-        model_statistics={
-            # Example: "Accuracy": {"value": 0.8, "standard_deviation": 0.01}
-        }
-    )
-
-    step = RegisterModel(
+def setup_model_registration_step(estimator, training_step):
+    """Set up the model registration step for the pipeline."""
+    model_metrics = ModelMetrics(model_statistics={})
+    return RegisterModel(
         name="RegisterBERTModel",
         estimator=estimator,
         model_data=training_step.properties.ModelArtifacts.S3ModelArtifacts,
@@ -115,32 +86,30 @@ def create_register_model_step(estimator, training_step):
         model_metrics=model_metrics,
     )
 
-    return step
-
 
 def main():
-    """
-    Description:
-        - run pipeline
-    """
-    ecr_repository_name = "sagemaker-ml-pipelines"
+    """Main function to execute the SageMaker pipeline."""
     aws_region = "us-east-1"
-    ecr_image_uri = get_latest_ecr_image_uri(ecr_repository_name, aws_region)
+    boto_session = boto3.Session(region_name=aws_region)
+    sagemaker_session = Session(boto_session=boto_session)
 
-    if not ecr_image_uri:
-        raise RuntimeError("ECR image URI could not be fetched")
+    repo_name = "sagemaker-ml-pipelines"
+    image_uri = fetch_ecr_image_uri(repo_name, aws_region)
 
-    experiment = create_experiment("MyBERTExperiment")
-    trial = create_trial(experiment.experiment_name)
+    if not image_uri:
+        raise RuntimeError("Failed to fetch ECR image URI.")
 
-    pytorch_estimator = create_pytorch_estimator(ecr_image_uri)
-    training_step = create_training_step(pytorch_estimator, trial.trial_name)
-    register_step = create_register_model_step(pytorch_estimator, training_step)
+    experiment = create_sagemaker_experiment("MyBERTExperiment", sagemaker_session)
+    trial = create_sagemaker_trial(experiment.experiment_name, sagemaker_session)
+
+    estimator = setup_pytorch_estimator(image_uri, sagemaker_session)
+    training_step = setup_training_step(estimator, trial.trial_name)
+    registration_step = setup_model_registration_step(estimator, training_step)
 
     pipeline = Pipeline(
         name="BERT-Training-Pipeline",
-        steps=[training_step, register_step],
-        sagemaker_session=PipelineSession(),
+        steps=[training_step, registration_step],
+        sagemaker_session=sagemaker_session,
     )
 
     pipeline.upsert(role_arn=sagemaker.get_execution_role())
